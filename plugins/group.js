@@ -1,4 +1,4 @@
-const { handler, parsedJid } = require('../lib');
+const { handler, parsedJid, groupMessageDB } = require('../lib');
 
 function extractInviteCode(text) {
  const match = text.match(/https?:\/\/chat\.whatsapp\.com\/([A-Za-z0-9]+)/);
@@ -332,5 +332,55 @@ handler(
   if (!meta.restrict) return await message.send('_Already everyone can modify group settings_');
   await client.groupSettingUpdate(message.jid, 'unlocked');
   return await message.send('*Everyone can modify group settings*');
+ }
+);
+
+handler(
+ {
+  pattern: 'welcome',
+  desc: 'Configure welcome message for newly joined users',
+  type: 'group',
+  usage: '.welcome [on/off/message]\nAvailable placeholders:\n@user, @gname, @admins, @members, @gdesc, @pp',
+ },
+ async (message, match, m) => {
+  if (!message.isGroup) return message.reply(group);
+  if (!m.isAdmin) return message.reply(admin);
+  const cmd = match.trim();
+  if (!cmd) return message.reply('Please provide a command or message.');
+  if (cmd === 'on' || cmd === 'off') {
+   await groupMessageDB.toggleEvent(message.jid, 'add', cmd === 'on');
+   return message.reply(`Welcome message has been turned ${cmd}`);
+  }
+  try {
+   await groupMessageDB.setMessage(message.jid, 'add', cmd);
+   return message.reply('Welcome message updated successfully!');
+  } catch (error) {
+   return message.reply('Failed to update welcome message');
+  }
+ }
+);
+
+handler(
+ {
+  pattern: 'goodbye',
+  desc: 'Configure goodbye message for users that leave the group',
+  type: 'group',
+  usage: '.goodbye [on/off/message]\nAvailable placeholders:\n@user, @gname, @admins, @members, @gdesc',
+ },
+ async (message, match, m) => {
+  if (!message.isGroup) return message.reply(group);
+  if (!m.isAdmin) return message.reply(admin);
+  const cmd = match.trim();
+  if (!cmd) return message.reply('Please provide a command or message.');
+  if (cmd === 'on' || cmd === 'off') {
+   await groupMessageDB.toggleEvent(message.jid, 'remove', cmd === 'on');
+   return message.reply(`Goodbye message has been turned ${cmd}`);
+  }
+  try {
+   await groupMessageDB.setMessage(message.jid, 'remove', cmd);
+   return message.reply('Goodbye message updated successfully!');
+  } catch (error) {
+   return message.reply('Failed to update goodbye message');
+  }
  }
 );
